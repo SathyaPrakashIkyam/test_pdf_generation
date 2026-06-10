@@ -1,0 +1,87 @@
+.cheque-modal {
+  max-width: 500px !important;
+}
+
+.cheque-body {
+  background-color: rgba(7, 10, 19, 0.4) !important;
+  padding: 24px !important;
+  display: flex;
+  justify-content: center;
+}
+
+/* Blank Portrait A4 Sheet preview matching screenshot */
+.cheque-paper.portrait-feed-blank {
+  position: relative;
+  background-color: #ffffff;
+  color: #000000;
+  width: 420px;
+  height: 594px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+}
+
+/* Vertical value rows - matching PDF orientation */
+.cheque-val-vertical {
+  position: absolute;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-weight: 700;
+  color: #000000;
+  font-family: Arial, sans-serif;
+}
+
+/* A/C Payee Only: X = 145mm -> 290px, Y = 49mm -> 98px */
+.ac-payee-vert {
+  left: 290px;
+  top: 98px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Date Boxes Vertical stack: X = 148mm -> 296px, Y = 164mm -> 328px */
+.cheque-date-vertical-blank {
+  position: absolute;
+  left: 296px; 
+  top: 328px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.date-char-vert {
+  width: 20px;
+  height: 11px; /* 5.5mm spacing * 2 = 11px */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #000000;
+  transform: rotate(270deg);
+}
+
+/* Payee Name: Welfare Fund - X = 133.5mm -> 267px, Y = 20mm -> 40px */
+.payee-name-vert {
+  left: 267px; 
+  top: 40px;
+  font-size: 15px;
+}
+
+/* Amount Words: Ten Indian Rupee - X = 124.8mm -> 250px, Y = 31.9mm -> 64px */
+.payee-words-vert {
+  left: 250px; 
+  top: 64px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Amount Value: *** 10.00 - X = 114mm -> 228px, Y = 165mm -> 330px */
+.amount-val-vert {
+  left: 228px; 
+  top: 330px;
+  font-size: 15px;
+}
