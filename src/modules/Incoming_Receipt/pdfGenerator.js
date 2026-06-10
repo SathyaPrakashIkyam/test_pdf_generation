@@ -37,7 +37,7 @@ export const numberToIndianWords = (amount) => {
   }
 
   let num = Math.floor(amount);
-  
+
   let crore = Math.floor(num / 10000000);
   num %= 10000000;
   let lakh = Math.floor(num / 100000);
@@ -72,24 +72,24 @@ export const numberToIndianWords = (amount) => {
  * @param {Object} data - Receipt transaction data object
  */
 export const generateReceiptPDF = (data = {}) => {
-  // Destructure and assign defaults to match original screenshot/PDF structure
+  // Destructure and assign empty defaults if values are missing
   const {
-    DocNum = "D16IP26501501127",
-    Date: DocDate = "08-06-2026",
-    CardCode = "R250521953",
-    CardName = "Gurpreet Singh Sekhon",
-    Amount = 1.00,
-    Through = "Cash in Hand SR",
-    CompanyName = "DADA MOTOR ENTERPRISES LLP",
-    BranchBlock = "Mahindra Sirhind, OPP CHEEMA HAVELI, G.T.Road,",
-    BranchCity = "Village-Harbanspura,Fatehgarh Sahib, Sirhind",
-    Branch_State = "Punjab",
-    BranchZipCode = "140406",
-    Branch_State_Code = "03",
-    RowDocNum = "RBR26D005425 Dated: 13-03-2026",
+    DocNum = "",
+    Date: DocDate = "",
+    CardCode = "",
+    CardName = "",
+    Amount = 0,
+    Through = "",
+    CompanyName = "",
+    BranchBlock = "",
+    BranchCity = "",
+    Branch_State = "",
+    BranchZipCode = "",
+    Branch_State_Code = "",
+    RowDocNum = "",
     DocRemarks = "",
     UTRNO = "",
-  } = data;
+  } = data || {};
 
   // A4 dimensions: 210mm x 297mm
   const doc = new jsPDF({
@@ -103,16 +103,27 @@ export const generateReceiptPDF = (data = {}) => {
   doc.setLineWidth(0.2);
   doc.setTextColor(0, 0, 0);
 
-  // --- Header Section ---
-  
-  // "DADA" Logo on top-left
+  // --- Main Content Boxed Area ---
+  const startX = 10;
+  const startY = 10; // Box starts at Y=10
+  const boxWidth = 190;
+  const boxHeight = 146; // Box height extended to Y=156
+  const endX = startX + boxWidth; // 200
+  const endY = startY + boxHeight; // 156
+
+  // Draw the outer rectangle enclosing the entire receipt content
+  doc.rect(startX, startY, boxWidth, boxHeight);
+
+  // --- Header Section inside Box ---
+
+  // "DADA" Logo on top-left (inside box)
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(28);
   doc.text('DADA', 12, 22);
 
   // Centered Company Information
   const centerX = 105;
-  
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.text(CompanyName, centerX, 15, { align: 'center' });
@@ -122,10 +133,19 @@ export const generateReceiptPDF = (data = {}) => {
   doc.setFontSize(8.5);
   doc.text(BranchBlock, centerX, 20, { align: 'center' });
 
-  // Address line 2
-  const addressLine2 = (BranchCity.includes("India") || BranchZipCode.includes("India")) 
-    ? `${BranchCity} ${BranchZipCode}` 
-    : `${BranchCity}, ${Branch_State} - ${BranchZipCode} India`;
+  // Address line 2 safely
+  let addressLine2 = "";
+  if (BranchCity || BranchZipCode) {
+    const cityText = BranchCity || "";
+    const zipText = BranchZipCode || "";
+    const stateText = Branch_State ? `, ${Branch_State}` : "";
+
+    if (cityText.includes("India") || zipText.includes("India")) {
+      addressLine2 = `${cityText} ${zipText}`.trim();
+    } else {
+      addressLine2 = `${cityText}${stateText}${zipText ? " - " + zipText : ""} India`.trim();
+    }
+  }
   doc.text(addressLine2, centerX, 24, { align: 'center' });
 
   // State Name & Code
@@ -134,53 +154,41 @@ export const generateReceiptPDF = (data = {}) => {
   // "Receipt" Title
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text('Receipt', centerX, 37, { align: 'center' });
+  doc.text('Receipt', centerX, 36, { align: 'center' });
 
+  // Line 1: Divider below Header Section (Y=41)
 
-  // --- Main Content Boxed Area ---
-  
-  // Outer rectangle border
-  // Starting at X=10, Y=44, Width=190, Height=112
-  const startX = 10;
-  const startY = 44;
-  const boxWidth = 190;
-  const boxHeight = 112;
-  const endX = startX + boxWidth; // 200
-  const endY = startY + boxHeight; // 156
-  
-  doc.rect(startX, startY, boxWidth, boxHeight);
-
-  // Line 1: Border below No. & Date row (Y=51)
-  doc.line(startX, 51, endX, 51);
 
   // Receipt No (Left side)
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
-  doc.text(`No. : ${DocNum}`, startX + 2, 48.5);
+  doc.text(`No. : ${DocNum}`, startX + 2, 45.5);
 
   // Date (Right side with bold date value)
   doc.setFont('helvetica', 'bold');
-  doc.text(DocDate, endX - 2, 48.5, { align: 'right' });
+  doc.text(DocDate, endX - 2, 45.5, { align: 'right' });
   const dateValWidth = doc.getTextWidth(DocDate);
-  
+
   doc.setFont('helvetica', 'normal');
-  doc.text('Date : ', endX - 2 - dateValWidth, 48.5, { align: 'right' });
+  doc.text('Date : ', endX - 2 - dateValWidth, 45.5, { align: 'right' });
 
+  // Line 2: Divider below No. & Date row (Y=48)
+  doc.line(startX, 48, endX, 48);
 
-  // Line 2: Border below Column Headers (Y=58)
-  doc.line(startX, 58, endX, 58);
+  // Header "Particulars" (Y=52.5)
+  doc.text('Particulars', startX + 2, 52.5);
 
-  // Header "Particulars"
-  doc.text('Particulars', startX + 2, 55);
+  // Header "Amount" (Y=52.5)
+  doc.text('Amount', endX - 2, 52.5, { align: 'right' });
 
-  // Header "Amount"
-  doc.text('Amount', endX - 2, 55, { align: 'right' });
-
+  // Line 3: Divider below Column Headers (Y=55)
+  doc.line(startX, 55, endX, 55);
 
   // Vertical column separator (X=152)
-  // Starts below headers row (Y=51) and ends at bottom of table body row (Y=120)
+  // Starts below No. & Date row (Y=48) and ends at bottom of table body row (Y=120)
   const colSeparatorX = 152;
-  doc.line(colSeparatorX, 51, colSeparatorX, 120);
+  doc.line(colSeparatorX, 48, colSeparatorX, 120);
+
 
 
   // --- Table Body (Y=58 to Y=120) ---
