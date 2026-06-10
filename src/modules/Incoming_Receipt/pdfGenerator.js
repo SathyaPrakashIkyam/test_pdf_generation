@@ -1,13 +1,96 @@
 import { jsPDF } from 'jspdf';
 
 /**
+ * Converts a numeric amount into standard Indian English Words.
+ * (e.g. 48300 -> "Rupees Forty Eight Thousand Three Hundred Only")
+ * 
+ * @param {number} amount 
+ * @returns {string} Words representation of the amount
+ */
+export const numberToIndianWords = (amount) => {
+  if (amount === 0) return 'Rupees Zero Only';
+
+  const singleDigits = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+  const doubleDigits = ["", "Ten", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+
+  function getTwoDigitWord(n) {
+    if (n === 0) return "";
+    if (n < 10) return singleDigits[n];
+    if (n < 20) return teens[n - 10];
+    const digit1 = Math.floor(n / 10);
+    const digit2 = n % 10;
+    return doubleDigits[digit1] + (digit2 > 0 ? " " + singleDigits[digit2] : "");
+  }
+
+  function getThreeDigitWord(n) {
+    const hundred = Math.floor(n / 100);
+    const rest = n % 100;
+    let word = "";
+    if (hundred > 0) {
+      word += singleDigits[hundred] + " Hundred";
+    }
+    if (rest > 0) {
+      word += (word !== "" ? " " : "") + getTwoDigitWord(rest);
+    }
+    return word;
+  }
+
+  let num = Math.floor(amount);
+  
+  let crore = Math.floor(num / 10000000);
+  num %= 10000000;
+  let lakh = Math.floor(num / 100000);
+  num %= 100000;
+  let thousand = Math.floor(num / 1000);
+  num %= 1000;
+  let hundred = num;
+
+  let words = "";
+
+  if (crore > 0) {
+    words += getThreeDigitWord(crore) + " Crore ";
+  }
+  if (lakh > 0) {
+    words += getTwoDigitWord(lakh) + " Lakh ";
+  }
+  if (thousand > 0) {
+    words += getTwoDigitWord(thousand) + " Thousand ";
+  }
+  if (hundred > 0) {
+    words += getThreeDigitWord(hundred);
+  }
+
+  words = words.trim();
+  return `Rupees ${words} Only`;
+};
+
+/**
  * Generates a pixel-perfect receipt PDF matching the exact layout and dimensions
  * of the screenshot and sample PDF.
  * 
- * @param {Object} options 
- * @param {Object} options.data - Data to populate (for now hardcoded, but flexible for future integration)
+ * @param {Object} data - Receipt transaction data object
  */
-export const generateReceiptPDF = (options = {}) => {
+export const generateReceiptPDF = (data = {}) => {
+  // Destructure and assign defaults to match original screenshot/PDF structure
+  const {
+    DocNum = "D16IP26501501127",
+    Date: DocDate = "08-06-2026",
+    CardCode = "R250521953",
+    CardName = "Gurpreet Singh Sekhon",
+    Amount = 1.00,
+    Through = "Cash in Hand SR",
+    CompanyName = "DADA MOTOR ENTERPRISES LLP",
+    BranchBlock = "Mahindra Sirhind, OPP CHEEMA HAVELI, G.T.Road,",
+    BranchCity = "Village-Harbanspura,Fatehgarh Sahib, Sirhind",
+    Branch_State = "Punjab",
+    BranchZipCode = "140406",
+    Branch_State_Code = "03",
+    RowDocNum = "RBR26D005425 Dated: 13-03-2026",
+    DocRemarks = "",
+    UTRNO = "",
+  } = data;
+
   // A4 dimensions: 210mm x 297mm
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -30,21 +113,23 @@ export const generateReceiptPDF = (options = {}) => {
   // Centered Company Information
   const centerX = 105;
   
-  // "DADA MOTOR ENTERPRISES LLP"
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.text('DADA MOTOR ENTERPRISES LLP', centerX, 15, { align: 'center' });
+  doc.text(CompanyName, centerX, 15, { align: 'center' });
 
   // Address line 1
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
-  doc.text('Mahindra Sirhind, OPP CHEEMA HAVELI, G.T.Road,', centerX, 20, { align: 'center' });
+  doc.text(BranchBlock, centerX, 20, { align: 'center' });
 
   // Address line 2
-  doc.text('Village-Harbanspura,Fatehgarh Sahib, Sirhind Punjab - 140406 India', centerX, 24, { align: 'center' });
+  const addressLine2 = (BranchCity.includes("India") || BranchZipCode.includes("India")) 
+    ? `${BranchCity} ${BranchZipCode}` 
+    : `${BranchCity}, ${Branch_State} - ${BranchZipCode} India`;
+  doc.text(addressLine2, centerX, 24, { align: 'center' });
 
   // State Name & Code
-  doc.text('State Name : Punjab      Code : 03', centerX, 29, { align: 'center' });
+  doc.text(`State Name : ${Branch_State}      Code : ${Branch_State_Code}`, centerX, 29, { align: 'center' });
 
   // "Receipt" Title
   doc.setFont('helvetica', 'bold');
@@ -71,18 +156,15 @@ export const generateReceiptPDF = (options = {}) => {
   // Receipt No (Left side)
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
-  doc.text('No. : D16IP26501501127', startX + 2, 48.5);
+  doc.text(`No. : ${DocNum}`, startX + 2, 48.5);
 
   // Date (Right side with bold date value)
-  const dateVal = '08-06-2026';
-  const dateLabel = 'Date : ';
-  
   doc.setFont('helvetica', 'bold');
-  doc.text(dateVal, endX - 2, 48.5, { align: 'right' });
-  const dateValWidth = doc.getTextWidth(dateVal);
+  doc.text(DocDate, endX - 2, 48.5, { align: 'right' });
+  const dateValWidth = doc.getTextWidth(DocDate);
   
   doc.setFont('helvetica', 'normal');
-  doc.text(dateLabel, endX - 2 - dateValWidth, 48.5, { align: 'right' });
+  doc.text('Date : ', endX - 2 - dateValWidth, 48.5, { align: 'right' });
 
 
   // Line 2: Border below Column Headers (Y=58)
@@ -109,28 +191,34 @@ export const generateReceiptPDF = (options = {}) => {
 
   // Account details (Indented text)
   doc.setFont('helvetica', 'normal');
-  doc.text('R250521953 .Gurpreet Singh Sekhon', startX + 25, 68);
+  doc.text(`${CardCode} .${CardName}`, startX + 25, 68);
 
   // Right-aligned amount for the account
-  doc.text('1.00', endX - 2, 63, { align: 'right' });
+  const formattedAmount = Amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  doc.text(formattedAmount, endX - 2, 63, { align: 'right' });
 
   // "Through : Cash in Hand SR"
   doc.setFont('helvetica', 'bold');
   doc.text('Through : ', startX + 2, 102);
   const throughLabelWidth = doc.getTextWidth('Through : ');
   doc.setFont('helvetica', 'normal');
-  doc.text('Cash in Hand SR', startX + 2 + throughLabelWidth, 102);
+  doc.text(Through, startX + 2 + throughLabelWidth, 102);
 
   // "On Account of : RBR26D005425 Dated: 13-03-2026"
+  // Combine RowDocNum and DocRemarks nicely if present
+  let onAccountOfText = RowDocNum;
+  if (DocRemarks) {
+    onAccountOfText = `${RowDocNum} - ${DocRemarks}`;
+  }
   doc.setFont('helvetica', 'bold');
   doc.text('On Account of : ', startX + 2, 108);
   const onAccountLabelWidth = doc.getTextWidth('On Account of : ');
   doc.setFont('helvetica', 'normal');
-  doc.text('RBR26D005425 Dated: 13-03-2026', startX + 2 + onAccountLabelWidth, 108);
+  doc.text(onAccountOfText, startX + 2 + onAccountLabelWidth, 108);
 
   // "UTR No. :"
   doc.setFont('helvetica', 'bold');
-  doc.text('UTR No. :', startX + 2, 114);
+  doc.text(`UTR No. : ${UTRNO}`, startX + 2, 114);
 
 
   // --- Total Separator & Value (Inside Amount column) ---
@@ -140,7 +228,7 @@ export const generateReceiptPDF = (options = {}) => {
 
   // Total amount value (Y=117)
   doc.setFont('helvetica', 'bold');
-  doc.text('1.00', endX - 2, 117, { align: 'right' });
+  doc.text(formattedAmount, endX - 2, 117, { align: 'right' });
 
 
   // --- Box Bottom Row Separator (Y=120) ---
@@ -150,20 +238,21 @@ export const generateReceiptPDF = (options = {}) => {
   // --- Bottom Section ---
 
   // "Amount (in Words) : Rupees One Only" (Left side, Y=128)
+  const amountWordsText = numberToIndianWords(Amount);
   doc.setFont('helvetica', 'bold');
   doc.text('Amount (in Words) : ', startX + 2, 128);
   const amountWordsWidth = doc.getTextWidth('Amount (in Words) : ');
   doc.setFont('helvetica', 'normal');
-  doc.text('Rupees One Only', startX + 2 + amountWordsWidth, 128);
+  doc.text(amountWordsText, startX + 2 + amountWordsWidth, 128);
 
   // "For DADA MOTOR ENTERPRISES LLP" (Right side, Y=126)
   doc.setFont('helvetica', 'bold');
-  doc.text('For DADA MOTOR ENTERPRISES LLP', endX - 2, 126, { align: 'right' });
+  doc.text(`For ${CompanyName}`, endX - 2, 126, { align: 'right' });
 
   // "Authorised Signatory" (Right side, Y=150)
   doc.setFont('helvetica', 'normal');
   doc.text('Authorised Signatory', endX - 2, 150, { align: 'right' });
 
   // Trigger download
-  doc.save('Receipt_D16IP26501501127.pdf');
+  doc.save(`Receipt_${DocNum}.pdf`);
 };
