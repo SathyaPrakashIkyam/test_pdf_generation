@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { logoBase64 } from '../logo_base64';
 
 /**
  * Converts a numeric amount into standard Indian English Words.
@@ -9,6 +10,9 @@ import { jsPDF } from 'jspdf';
  */
 export const numberToIndianWords = (amount) => {
   if (amount === 0) return 'Rupees Zero Only';
+
+  const isNegative = amount < 0;
+  const absAmount = Math.abs(amount);
 
   const singleDigits = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
   const doubleDigits = ["", "Ten", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
@@ -36,7 +40,7 @@ export const numberToIndianWords = (amount) => {
     return word;
   }
 
-  let num = Math.floor(amount);
+  let num = Math.floor(absAmount);
 
   let crore = Math.floor(num / 10000000);
   num %= 10000000;
@@ -62,7 +66,7 @@ export const numberToIndianWords = (amount) => {
   }
 
   words = words.trim();
-  return `Rupees ${words} Only`;
+  return `Rupees ${isNegative ? "Minus " : ""}${words} Only`;
 };
 
 /**
@@ -72,24 +76,36 @@ export const numberToIndianWords = (amount) => {
  * @param {Object} data - Receipt transaction data object
  */
 export const generateReceiptPDF = (data = {}) => {
-  // Destructure and assign empty defaults if values are missing
+  // Ensure data is array
+  const items = Array.isArray(data) ? data : (data ? [data] : []);
+  const firstItem = items[0] || {};
+  const lastItem = items[items.length - 1] || {};
+
   const {
     DocNum = "",
     Date: DocDate = "",
-    CardCode = "",
-    CardName = "",
-    Amount = 0,
-    Through = "",
     CompanyName = "",
     BranchBlock = "",
     BranchCity = "",
     Branch_State = "",
     BranchZipCode = "",
     Branch_State_Code = "",
-    RowDocNum = "",
-    DocRemarks = "",
-    UTRNO = "",
-  } = data || {};
+    BranchName = "",
+    B_Name = "",
+    B_Block = "",
+    BranchCountry = "India"
+  } = firstItem;
+
+  // Extract total amount
+  const totalAmount = items.reduce((sum, item) => sum + (item.Amount || 0), 0);
+
+  // Extract unique/merged Through and UTRNO from all items
+  const Through = items.map(item => item.Through).filter(Boolean).join(", ") || firstItem.Through || "";
+  const UTRNO = items.map(item => item.UTRNO).filter(Boolean).join(", ") || firstItem.UTRNO || "";
+  
+  // Display On Account of using the DocRemarks of the last item in the list
+  const DocRemarks = lastItem.DocRemarks || "";
+  const RowDocNum = lastItem.RowDocNum || "";
 
   // A4 dimensions: 210mm x 297mm
   const doc = new jsPDF({
@@ -117,9 +133,21 @@ export const generateReceiptPDF = (data = {}) => {
   // --- Header Section inside Box ---
 
   // "DADA" Logo on top-left (inside box)
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(28);
-  doc.text('DADA', 12, 22);
+  const logoDataUrl = (() => {
+    if (!logoBase64 || logoBase64.includes("PASTE_YOUR_BASE64_HERE")) return null;
+    if (logoBase64.startsWith("data:image")) return logoBase64;
+    return `data:image/png;base64,${logoBase64}`;
+  })();
+
+  if (logoDataUrl) {
+    // Render the premium image logo
+    doc.addImage(logoDataUrl, 'PNG', 12, 13, 28, 9);
+  } else {
+    // Fallback text if base64 is missing
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(28);
+    doc.text('DADA', 12, 22);
+  }
 
   // Centered Company Information
   const centerX = 105;
@@ -128,24 +156,35 @@ export const generateReceiptPDF = (data = {}) => {
   doc.setFontSize(10);
   doc.text(CompanyName, centerX, 15, { align: 'center' });
 
+  // Formulate Address Line 1 and 2 safely to match screenshot
+  const branchNameText = BranchName || B_Name || "";
+  const blockText = BranchBlock || B_Block || "";
+  const cityText = BranchCity || "";
+  const zipText = BranchZipCode || "";
+  const stateText = Branch_State || "";
+  const countryText = BranchCountry || "India";
+
+  let addressLine1 = "";
+  let addressLine2 = "";
+
+  if (blockText.includes("G.T.Road,")) {
+    const splitIndex = blockText.indexOf("G.T.Road,") + "G.T.Road,".length;
+    const part1 = blockText.substring(0, splitIndex).trim();
+    const part2 = blockText.substring(splitIndex).trim();
+    
+    addressLine1 = branchNameText ? `${branchNameText}, ${part1}` : part1;
+    addressLine2 = `${part2} ${cityText} ${stateText} - ${zipText} ${countryText}`.replace(/\s+/g, ' ').trim();
+  } else {
+    addressLine1 = branchNameText ? `${branchNameText}, ${blockText}` : blockText;
+    addressLine2 = `${cityText} ${stateText} - ${zipText} ${countryText}`.replace(/\s+/g, ' ').trim();
+  }
+
   // Address line 1
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
-  doc.text(BranchBlock, centerX, 20, { align: 'center' });
+  doc.text(addressLine1, centerX, 20, { align: 'center' });
 
   // Address line 2 safely
-  let addressLine2 = "";
-  if (BranchCity || BranchZipCode) {
-    const cityText = BranchCity || "";
-    const zipText = BranchZipCode || "";
-    const stateText = Branch_State ? `, ${Branch_State}` : "";
-
-    if (cityText.includes("India") || zipText.includes("India")) {
-      addressLine2 = `${cityText} ${zipText}`.trim();
-    } else {
-      addressLine2 = `${cityText}${stateText}${zipText ? " - " + zipText : ""} India`.trim();
-    }
-  }
   doc.text(addressLine2, centerX, 24, { align: 'center' });
 
   // State Name & Code
@@ -155,9 +194,6 @@ export const generateReceiptPDF = (data = {}) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.text('Receipt', centerX, 36, { align: 'center' });
-
-  // Line 1: Divider below Header Section (Y=41)
-
 
   // Receipt No (Left side)
   doc.setFont('helvetica', 'normal');
@@ -189,45 +225,59 @@ export const generateReceiptPDF = (data = {}) => {
   const colSeparatorX = 152;
   doc.line(colSeparatorX, 48, colSeparatorX, 120);
 
-
-
   // --- Table Body (Y=58 to Y=120) ---
+  let currentY = 63;
+  items.forEach((item) => {
+    // "Account :"
+    doc.setFont('helvetica', 'bold');
+    doc.text('Account :', startX + 2, currentY);
 
-  // "Account :"
-  doc.setFont('helvetica', 'bold');
-  doc.text('Account :', startX + 2, 63);
+    // Account details (Indented text) - no dot, just space to match design screenshot
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${item.CardCode || ""} ${item.CardName || ""}`, startX + 25, currentY + 5);
 
-  // Account details (Indented text)
-  doc.setFont('helvetica', 'normal');
-  doc.text(`${CardCode} .${CardName}`, startX + 25, 68);
+    // Right-aligned amount for the account
+    const itemAmount = item.Amount || 0;
+    const formattedItemAmount = itemAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    doc.text(formattedItemAmount, endX - 2, currentY, { align: 'right' });
 
-  // Right-aligned amount for the account
-  const formattedAmount = Amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  doc.text(formattedAmount, endX - 2, 63, { align: 'right' });
+    currentY += 12; // Advance to next account item
+  });
 
-  // "Through : Cash in Hand SR"
+  // "Through : "
   doc.setFont('helvetica', 'bold');
   doc.text('Through : ', startX + 2, 102);
   const throughLabelWidth = doc.getTextWidth('Through : ');
   doc.setFont('helvetica', 'normal');
   doc.text(Through, startX + 2 + throughLabelWidth, 102);
 
-  // "On Account of : RBR26D005425 Dated: 13-03-2026"
-  // Combine RowDocNum and DocRemarks nicely if present
-  let onAccountOfText = RowDocNum;
+  // Formulate On Account Of text
+  let onAccountOfText = "";
   if (DocRemarks) {
-    onAccountOfText = `${RowDocNum} - ${DocRemarks}`;
+    if (RowDocNum && RowDocNum === "Payment On Account") {
+      onAccountOfText = `${RowDocNum} - ${DocRemarks}`;
+    } else {
+      onAccountOfText = DocRemarks;
+    }
+  } else {
+    onAccountOfText = RowDocNum;
   }
+
+  // "On Account of : "
   doc.setFont('helvetica', 'bold');
   doc.text('On Account of : ', startX + 2, 108);
   const onAccountLabelWidth = doc.getTextWidth('On Account of : ');
   doc.setFont('helvetica', 'normal');
   doc.text(onAccountOfText, startX + 2 + onAccountLabelWidth, 108);
 
-  // "UTR No. :"
-  doc.setFont('helvetica', 'bold');
-  doc.text(`UTR No. : ${UTRNO}`, startX + 2, 114);
-
+  // "UTR No. :" (render only if present)
+  if (UTRNO) {
+    doc.setFont('helvetica', 'bold');
+    doc.text('UTR No. : ', startX + 2, 114);
+    const utrLabelWidth = doc.getTextWidth('UTR No. : ');
+    doc.setFont('helvetica', 'normal');
+    doc.text(UTRNO, startX + 2 + utrLabelWidth, 114);
+  }
 
   // --- Total Separator & Value (Inside Amount column) ---
 
@@ -236,7 +286,8 @@ export const generateReceiptPDF = (data = {}) => {
 
   // Total amount value (Y=117)
   doc.setFont('helvetica', 'bold');
-  doc.text(formattedAmount, endX - 2, 117, { align: 'right' });
+  const formattedTotalAmount = totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  doc.text(formattedTotalAmount, endX - 2, 117, { align: 'right' });
 
 
   // --- Box Bottom Row Separator (Y=120) ---
@@ -245,8 +296,8 @@ export const generateReceiptPDF = (data = {}) => {
 
   // --- Bottom Section ---
 
-  // "Amount (in Words) : Rupees One Only" (Left side, Y=128)
-  const amountWordsText = numberToIndianWords(Amount);
+  // "Amount (in Words) : "
+  const amountWordsText = numberToIndianWords(totalAmount);
   doc.setFont('helvetica', 'bold');
   doc.text('Amount (in Words) : ', startX + 2, 128);
   const amountWordsWidth = doc.getTextWidth('Amount (in Words) : ');

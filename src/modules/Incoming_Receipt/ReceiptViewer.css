@@ -201,7 +201,8 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 15px;
+  padding: 20px 20px 0 20px;
+  margin-bottom: 10px;
 }
 
 .logo-section {
@@ -211,6 +212,20 @@
   line-height: 0.8;
   letter-spacing: -2.5px;
   color: #000;
+}
+
+.logo-img-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 54px;
+}
+
+.logo-image {
+  max-height: 44px;
+  width: auto;
+  object-fit: contain;
+  display: block;
 }
 
 .company-info {
@@ -242,8 +257,13 @@
   text-align: center;
   font-size: 15.5px;
   font-weight: 700;
-  margin: 12px 0 16px 0;
+  margin: 10px 0 14px 0;
   color: #000;
+}
+
+.header-divider {
+  border-bottom: 1px solid var(--border-paper);
+  width: 100%;
 }
 
 /* Content Box with Borders */
@@ -465,3 +485,40 @@
     margin-bottom: -240px;
   }
 }
+
+/* Grid layout classes for supporting multiple accounts list */
+.table-grid-container {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-height: 250px;
+}
+
+.particulars-row,
+.particulars-spacer-row,
+.particulars-bottom-row {
+  display: flex;
+  width: 100%;
+}
+
+.particulars-spacer-row {
+  flex-grow: 1;
+}
+
+.particulars-left {
+  flex-grow: 1;
+  border-right: 1px solid var(--border-paper);
+  padding: 8px 10px;
+}
+
+.particulars-right {
+  width: 130px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+
+.particulars-spacer-row .particulars-left,
+.particulars-spacer-row .particulars-right {
+  padding: 0;
+}
+
